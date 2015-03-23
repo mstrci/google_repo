@@ -22,6 +22,7 @@ from signal import SIGTERM
 from error import GitError
 from trace import REPO_TRACE, IsTrace, Trace
 from wrapper import Wrapper
+import portable
 
 GIT = 'git'
 MIN_GIT_VERSION = (1, 5, 4)
@@ -220,6 +221,7 @@ class GitCommand(object):
     if ssh_proxy:
       _add_ssh_client(p)
 
+    portable.SUBPROCESSES.append(p)
     self.process = p
     self.stdin = p.stdin
 
@@ -228,6 +230,7 @@ class GitCommand(object):
       p = self.process
       (self.stdout, self.stderr) = p.communicate()
       rc = p.returncode
+      portable.SUBPROCESSES.remove(p)
     finally:
       _remove_ssh_client(p)
     return rc
