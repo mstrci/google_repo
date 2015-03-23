@@ -138,7 +138,7 @@ class GitRefs(object):
 
   def _ReadLoose1(self, path, name):
     try:
-      fd = open(path, 'rb')
+      fd = open(path, 'r')
     except IOError:
       return
 
