@@ -35,8 +35,8 @@ from error import GitError, HookError, UploadError
 from error import ManifestInvalidRevisionError
 from error import NoManifestException
 from trace import IsTrace, Trace
-
 from git_refs import GitRefs, HEAD, R_HEADS, R_TAGS, R_PUB, R_M
+import portable
 
 from pyversion import is_python3
 if not is_python3():
@@ -54,6 +54,8 @@ def _lwrite(path, content):
     fd.close()
 
   try:
+    if os.path.exists(lock):
+      os.remove(lock)
     os.rename(lock, path)
   except OSError:
     os.remove(lock)
@@ -61,7 +63,7 @@ def _lwrite(path, content):
 
 def _error(fmt, *args):
   msg = fmt % args
-  print('error: %s' % msg, file=sys.stderr)
+  print('error in project: %s' % msg, file=sys.stderr)
 
 def not_rev(r):
   return '^' + r
@@ -2183,7 +2185,7 @@ class Project(object):
           _error("%s: Not replacing %s hook", self.relpath, name)
           continue
       try:
-        os.symlink(os.path.relpath(stock_hook, os.path.dirname(dst)), dst)
+        portable.os_link(stock_hook, dst)
       except OSError as e:
         if e.errno == errno.EPERM:
           raise GitError('filesystem must support symlinks')
@@ -2286,6 +2288,15 @@ class Project(object):
     dotgit = os.path.join(self.worktree, '.git')
     if not os.path.exists(dotgit):
       os.makedirs(dotgit)
+      # create dir - since on Linux a broken link will be created, which is not allowed on windows
+      rr_cache = os.path.join(self.gitdir, 'rr-cache')
+      if not os.path.exists(rr_cache):
+        os.makedirs(rr_cache)
+      packed_refs = os.path.join(self.gitdir, 'packed-refs')
+      if not os.path.exists(packed_refs):
+        fd = open(packed_refs, "w")
+        fd.close()
+
       self._ReferenceGitDir(self.gitdir, dotgit, share_refs=True,
                             copy_all=False)
 
@@ -2428,7 +2439,7 @@ class Project(object):
       else:
         path = os.path.join(self._project.worktree, '.git', HEAD)
       try:
-        fd = open(path, 'rb')
+        fd = open(path, 'r')
       except IOError as e:
         raise NoManifestException(path, str(e))
       try:
