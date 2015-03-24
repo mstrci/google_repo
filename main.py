@@ -24,7 +24,6 @@ import sys
 import time
 import subprocess
 import signal
-import portable
 
 from pyversion import is_python3
 if is_python3():
@@ -56,8 +55,9 @@ from manifest_xml import XmlManifest
 from pager import RunPager
 from pager import _SelectPager
 from wrapper import WrapperPath, Wrapper
-
 from subcmds import all_commands
+from trace import Trace, IsTrace, SetTrace
+import portable
 
 if not is_python3():
   # pylint:disable=W0622
