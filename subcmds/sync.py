@@ -65,6 +65,7 @@ from error import RepoChangedException, GitError, ManifestParseError
 from project import SyncBuffer
 from progress import Progress
 from wrapper import Wrapper
+import portable
 
 _ONE_DAY_S = 24 * 60 * 60
 
@@ -458,7 +459,7 @@ later is required to fix a server side protocol bug.
             else:
               print('Deleting obsolete path %s' % project.worktree,
                     file=sys.stderr)
-              shutil.rmtree(project.worktree)
+              shutil.rmtree(project.worktree, onerror=portable.removeReadOnlyFilesHandler)
               # Try deleting parent subdirs if they are empty
               project_dir = os.path.dirname(project.worktree)
               while project_dir != self.manifest.topdir:
@@ -625,6 +626,11 @@ later is required to fix a server side protocol bug.
       self._ReloadManifest(manifest_name)
       if opt.jobs is None:
         self.jobs = self.manifest.default.sync_j
+        
+      if not portable.isPosix():
+        #fix broken manifest.xml link
+        pass
+
     all_projects = self.GetProjects(args,
                                     missing_ok=True,
                                     submodules_ok=opt.fetch_submodules)
