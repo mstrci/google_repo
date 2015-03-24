@@ -54,8 +54,6 @@ def _lwrite(path, content):
     fd.close()
 
   try:
-    if os.path.exists(lock):
-      os.remove(lock)
     os.rename(lock, path)
   except OSError:
     os.remove(lock)
@@ -254,7 +252,7 @@ class _LinkFile(object):
           dest_dir = os.path.dirname(dest)
           if not os.path.isdir(dest_dir):
             os.makedirs(dest_dir)
-        os.symlink(src, dest)
+        portable.os_link(src, dest)
       except IOError:
         _error('Cannot link file %s to %s', src, dest)
 
@@ -2272,7 +2270,7 @@ class Project(object):
             pass
 
         if name in to_symlink:
-          os.symlink(os.path.relpath(src, os.path.dirname(dst)), dst)
+          portable.os_link(os.path.relpath(src, os.path.dirname(dst)), dst)
         elif copy_all and not os.path.islink(dst):
           if os.path.isdir(src):
             shutil.copytree(src, dst)
