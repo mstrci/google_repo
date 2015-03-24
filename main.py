@@ -22,6 +22,9 @@ import optparse
 import os
 import sys
 import time
+import subprocess
+import signal
+import portable
 
 from pyversion import is_python3
 if is_python3():
@@ -37,7 +40,6 @@ except ImportError:
   kerberos = None
 
 from color import SetDefaultColoring
-from trace import SetTrace
 from git_command import git, GitCommand
 from git_config import init_ssh, close_ssh
 from command import InteractiveCommand
@@ -52,6 +54,7 @@ from error import NoSuchProjectError
 from error import RepoChangedException
 from manifest_xml import XmlManifest
 from pager import RunPager
+from pager import _SelectPager
 from wrapper import WrapperPath, Wrapper
 
 from subcmds import all_commands
@@ -61,9 +64,8 @@ if not is_python3():
   input = raw_input
   # pylint:enable=W0622
 
-global_options = optparse.OptionParser(
-                 usage="repo [-p|--paginate|--no-pager] COMMAND [ARGS]"
-                 )
+global_options = optparse.OptionParser(usage="repo [-p|--paginate|--no-pager|--piped-into-less] COMMAND [ARGS]")
+
 global_options.add_option('-p', '--paginate',
                           dest='pager', action='store_true',
                           help='display command output in the pager')
@@ -83,6 +85,21 @@ global_options.add_option('--version',
                           dest='show_version', action='store_true',
                           help='display this version of repo')
 
+global_options.add_option("--piped-into-pager", action="store_true", dest="pipedIntoPager", default=False)
+
+def _UsePager(name, cmd, gopts, copts):
+  if not gopts.no_pager and not isinstance(cmd, InteractiveCommand):
+    config = cmd.manifest.globalConfig
+    if gopts.pager:
+      use_pager = True
+    else:
+      use_pager = config.GetBoolean('pager.%s' % name)
+      if use_pager is None:
+        use_pager = cmd.WantPager(copts)
+    return use_pager
+  else:
+    return False
+
 class _Repo(object):
   def __init__(self, repodir):
     self.repodir = repodir
@@ -90,8 +107,7 @@ class _Repo(object):
     # add 'branch' as an alias for 'branches'
     all_commands['branch'] = all_commands['branches']
 
-  def _Run(self, argv):
-    result = 0
+  def _Config(self, argv):
     name = None
     glob = []
 
@@ -106,6 +122,7 @@ class _Repo(object):
       glob = argv
       name = 'help'
       argv = []
+
     gopts, _gargs = global_options.parse_args(glob)
 
     if gopts.trace:
@@ -117,13 +134,10 @@ class _Repo(object):
         print('fatal: invalid usage of --version', file=sys.stderr)
         return 1
 
-    SetDefaultColoring(gopts.color)
-
     try:
       cmd = self.commands[name]
     except KeyError:
-      print("repo: '%s' is not a repo command.  See 'repo help'." % name,
-            file=sys.stderr)
+      print("repo: '%s' is not a repo command.  See 'repo help'." % name, file=sys.stderr)
       return 1
 
     cmd.repodir = self.repodir
@@ -131,32 +145,28 @@ class _Repo(object):
     Editor.globalConfig = cmd.manifest.globalConfig
 
     if not isinstance(cmd, MirrorSafeCommand) and cmd.manifest.IsMirror:
-      print("fatal: '%s' requires a working directory" % name,
-            file=sys.stderr)
+      print("fatal: '%s' requires a working directory" % name, file=sys.stderr)
       return 1
 
-    try:
-      copts, cargs = cmd.OptionParser.parse_args(argv)
-      copts = cmd.ReadEnvironmentOptions(copts)
-    except NoManifestException as e:
-      print('error: in `%s`: %s' % (' '.join([name] + argv), str(e)),
-        file=sys.stderr)
-      print('error: manifest missing or unreadable -- please run init',
-            file=sys.stderr)
+    copts, cargs = cmd.OptionParser.parse_args(argv)
+    copts = cmd.ReadEnvironmentOptions(copts)
+
+    self.config = name, cmd, gopts, _gargs, copts, cargs, argv
+    return 0
+
+  def _Run(self):
+    if self.config:
+      (name, cmd, gopts, _gargs, copts, cargs, argv) = self.config
+    else:
+      print("repo was not configured, run _Config(argv) before calling _Run(..)")
       return 1
 
-    if not gopts.no_pager and not isinstance(cmd, InteractiveCommand):
+    if _UsePager(name, cmd, gopts, copts):
       config = cmd.manifest.globalConfig
-      if gopts.pager:
-        use_pager = True
-      else:
-        use_pager = config.GetBoolean('pager.%s' % name)
-        if use_pager is None:
-          use_pager = cmd.WantPager(copts)
-      if use_pager:
-        RunPager(config)
+      RunPager(config)
 
     start = time.time()
+
     try:
       result = cmd.Execute(copts, cargs)
     except (DownloadError, ManifestInvalidRevisionError,
@@ -455,8 +465,37 @@ def init_http():
     handlers.append(urllib.request.HTTPSHandler(debuglevel=1))
   urllib.request.install_opener(urllib.request.build_opener(*handlers))
 
+# If program runs in Windows and a Pager is required, fork has to circumvented:
+# make a system call of the current script with the additional parameter '--no-pager' and
+# append a pipe for the pager, e.g. '| less'
+def _WindowsPager(repo):
+  (name, cmd, gopts, _gargs, copts, cargs, argv) = repo.config
+  if _UsePager(name, cmd, gopts, copts):
+    python = sys.executable
+    thisScript = os.path.abspath(__file__)
+
+    args = sys.argv[1:]
+    argsSplit = args.index('--')
+    args1 = args[:argsSplit]
+    args2 = args[argsSplit+1:]
+    pager = _SelectPager(cmd.manifest.globalConfig)
+    shellCommand = [python, thisScript] + args1 + ['--', '--piped-into-pager', '--no-pager'] + args2 + ['|', pager]
+    if IsTrace():
+      Trace(' '.join(shellCommand))
+    subprocess.call(shellCommand, shell=True)
+    return True
+  else:
+    # set global variable if output is piped into pager; means that pager is simulated, this
+    # leads to correct coloring in windows
+    import pager
+    pager.active = gopts.pipedIntoPager
+
+    return False
+
 def _Main(argv):
   result = 0
+
+  signal.signal(signal.SIGTERM, portable.terminateHandle)
 
   opt = optparse.OptionParser(usage="repo wrapperinfo -- ...")
   opt.add_option("--repo-dir", dest="repodir",
@@ -475,11 +514,18 @@ def _Main(argv):
   Version.wrapper_path = opt.wrapper_path
 
   repo = _Repo(opt.repodir)
+  repo._Config(argv)
+
+  # intercept here if on Windows and Pager is required
+  if not portable.isPosix():
+    if _WindowsPager(repo):
+      # everything was already done; so exit
+      return 0
   try:
     try:
       init_ssh()
       init_http()
-      result = repo._Run(argv) or 0
+      result = repo._Run() or 0
     finally:
       close_ssh()
   except KeyboardInterrupt:
@@ -494,7 +540,8 @@ def _Main(argv):
     argv = list(sys.argv)
     argv.extend(rce.extra_args)
     try:
-      os.execv(__file__, argv)
+      argv.insert(0, __file__)
+      subprocess.call(argv) 
     except OSError as e:
       print('fatal: cannot restart repo after upgrade', file=sys.stderr)
       print('fatal: %s' % e, file=sys.stderr)
