@@ -15,7 +15,7 @@
 
 from __future__ import print_function
 import errno
-import fcntl
+#import fcntl
 import multiprocessing
 import re
 import os
@@ -313,50 +313,50 @@ def DoWork(project, mirror, opt, cmd, shell, cnt, config):
       def fileno(self):
         return self.fd.fileno()
 
-    empty = True
-    errbuf = ''
+    #empty = True
+    #errbuf = ''
 
-    p.stdin.close()
-    s_in = [sfd(p.stdout, sys.stdout),
-            sfd(p.stderr, sys.stderr)]
+    #p.stdin.close()
+    #s_in = [sfd(p.stdout, sys.stdout),
+    #        sfd(p.stderr, sys.stderr)]
 
-    for s in s_in:
-      flags = fcntl.fcntl(s.fd, fcntl.F_GETFL)
-      fcntl.fcntl(s.fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+    #for s in s_in:
+    #  flags = fcntl.fcntl(s.fd, fcntl.F_GETFL)
+    #  fcntl.fcntl(s.fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
-    while s_in:
-      in_ready, _out_ready, _err_ready = select.select(s_in, [], [])
-      for s in in_ready:
-        buf = s.fd.read(4096)
-        if not buf:
-          s.fd.close()
-          s_in.remove(s)
-          continue
+    #while s_in:
+    #  in_ready, _out_ready, _err_ready = select.select(s_in, [], [])
+    #  for s in in_ready:
+    #    buf = s.fd.read(4096)
+    #    if not buf:
+    #      s.fd.close()
+    #      s_in.remove(s)
+    #      continue
 
-        if not opt.verbose:
-          if s.fd != p.stdout:
-            errbuf += buf
-            continue
+    #    if not opt.verbose:
+    #      if s.fd != p.stdout:
+    #        errbuf += buf
+    #        continue
 
-        if empty and out:
-          if not cnt == 0:
-            out.nl()
+    #    if empty and out:
+    #      if not cnt == 0:
+    #        out.nl()
 
-          if mirror:
-            project_header_path = project['name']
-          else:
-            project_header_path = project['relpath']
-          out.project('project %s/', project_header_path)
-          out.nl()
-          out.flush()
-          if errbuf:
-            sys.stderr.write(errbuf)
-            sys.stderr.flush()
-            errbuf = ''
-          empty = False
+    #      if mirror:
+    #        project_header_path = project['name']
+    #      else:
+    #        project_header_path = project['relpath']
+    #      out.project('project %s/', project_header_path)
+    #      out.nl()
+    #      out.flush()
+    #      if errbuf:
+    #        sys.stderr.write(errbuf)
+    #        sys.stderr.flush()
+    #        errbuf = ''
+    #      empty = False
 
-        s.dest.write(buf)
-        s.dest.flush()
+    #    s.dest.write(buf)
+    #    s.dest.flush()
 
   r = p.wait()
   return r
