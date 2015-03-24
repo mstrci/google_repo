@@ -54,6 +54,8 @@ def _lwrite(path, content):
     fd.close()
 
   try:
+    if os.path.exists(path):
+      os.remove(path)      
     os.rename(lock, path)
   except OSError:
     os.remove(lock)
@@ -2270,7 +2272,7 @@ class Project(object):
             pass
 
         if name in to_symlink:
-          portable.os_link(os.path.relpath(src, os.path.dirname(dst)), dst)
+          portable.os_link(src, dst)
         elif copy_all and not os.path.islink(dst):
           if os.path.isdir(src):
             shutil.copytree(src, dst)
