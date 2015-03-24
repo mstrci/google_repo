@@ -33,6 +33,7 @@ from git_config import GitConfig
 from git_refs import R_HEADS, HEAD
 from project import RemoteSpec, Project, MetaProject
 from error import ManifestParseError, ManifestInvalidRevisionError
+import portable
 
 MANIFEST_FILE_NAME = 'manifest.xml'
 LOCAL_MANIFEST_NAME = 'local_manifest.xml'
@@ -152,7 +153,8 @@ class XmlManifest(object):
     try:
       if os.path.lexists(self.manifestFile):
         os.remove(self.manifestFile)
-      os.symlink('manifests/%s' % name, self.manifestFile)
+      src = 'manifests/%s' % name
+      portable.os_link('./.repo/%s' % src, self.manifestFile)
     except OSError as e:
       raise ManifestParseError('cannot link manifest %s: %s' % (name, str(e)))
 
