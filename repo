@@ -2,8 +2,8 @@
 
 ## repo default configuration
 ##
-REPO_URL = 'https://gerrit.googlesource.com/git-repo'
-REPO_REV = 'stable'
+REPO_URL = 'https://github.com/demonyangyue/git-repo'
+REPO_REV = 'compatible'
 
 # Copyright (C) 2008 Google Inc.
 #
@@ -20,7 +20,7 @@ REPO_REV = 'stable'
 # limitations under the License.
 
 # increment this whenever we make important changes to this script
-VERSION = (1, 22)
+VERSION = (1, 22, 1)
 
 # increment this if the MAINTAINER_KEYS block is modified
 KEYRING_VERSION = (1, 2)
@@ -129,6 +129,14 @@ else:
   urllib.request = urllib2
   urllib.error = urllib2
 
+
+# copied from portable
+def removeReadOnlyFiles(fn, path):
+  if not os.access(path, os.W_OK):
+    os.chmod(path, stat.S_IWUSR)
+    fn(path)
+  else:
+    raise Exception("Could not delete %s" % path)
 
 def _print(*objects, **kwargs):
   sep = kwargs.get('sep', ' ')
@@ -254,18 +262,12 @@ def _Init(args):
 
   _CheckGitVersion()
   try:
-    if NeedSetupGnuPG():
-      can_verify = SetupGnuPG(opt.quiet)
-    else:
-      can_verify = True
-
+    
     dst = os.path.abspath(os.path.join(repodir, S_repo))
     _Clone(url, dst, opt.quiet)
 
-    if can_verify and not opt.no_repo_verify:
-      rev = _Verify(dst, branch, opt.quiet)
-    else:
-      rev = 'refs/remotes/origin/%s^0' % branch
+    #don't verify branch
+    rev = 'refs/remotes/origin/%s^0' % branch
 
     _Checkout(dst, branch, rev, opt.quiet)
   except CloneFailure:
@@ -748,7 +750,7 @@ def main(orig_args):
     repo_main = my_main
 
   ver_str = '.'.join(map(str, VERSION))
-  me = [sys.executable, repo_main,
+  me = [sys.executable, repo_main, repo_main,
         '--repo-dir=%s' % rel_repo_dir,
         '--wrapper-version=%s' % ver_str,
         '--wrapper-path=%s' % wrapper_path,
@@ -756,7 +758,7 @@ def main(orig_args):
   me.extend(orig_args)
   me.extend(extra_args)
   try:
-    os.execv(sys.executable, me)
+    subprocess.call(me)
   except OSError as e:
     _print("fatal: unable to start %s" % repo_main, file=sys.stderr)
     _print("fatal: %s" % e, file=sys.stderr)
