@@ -193,7 +193,7 @@ later is required to fix a server side protocol bug.
                  dest='manifest_name',
                  help='temporary manifest to use for this sync', metavar='NAME.xml')
     p.add_option('--no-clone-bundle',
-                 dest='no_clone_bundle', action='store_true',
+                 dest='no_clone_bundle', action='store_true', default=True,
                  help='disable use of /clone.bundle on HTTP/HTTPS')
     p.add_option('-u', '--manifest-server-username', action='store',
                  dest='manifest_server_username',

@@ -2160,37 +2160,38 @@ class Project(object):
       self._InitHooks()
 
   def _InitHooks(self):
-    hooks = os.path.realpath(self._gitdir_path('hooks'))
-    if not os.path.exists(hooks):
-      os.makedirs(hooks)
-    for stock_hook in _ProjectHooks():
-      name = os.path.basename(stock_hook)
+    #hooks = os.path.realpath(self._gitdir_path('hooks'))
+    #if not os.path.exists(hooks):
+    #  os.makedirs(hooks)
+    #for stock_hook in _ProjectHooks():
+    #  name = os.path.basename(stock_hook)
 
-      if name in ('commit-msg',) and not self.remote.review \
-            and not self is self.manifest.manifestProject:
-        # Don't install a Gerrit Code Review hook if this
-        # project does not appear to use it for reviews.
-        #
-        # Since the manifest project is one of those, but also
-        # managed through gerrit, it's excluded
-        continue
+    #  if name in ('commit-msg',) and not self.remote.review \
+    #        and not self is self.manifest.manifestProject:
+    #    # Don't install a Gerrit Code Review hook if this
+    #    # project does not appear to use it for reviews.
+    #    #
+    #    # Since the manifest project is one of those, but also
+    #    # managed through gerrit, it's excluded
+    #    continue
 
-      dst = os.path.join(hooks, name)
-      if os.path.islink(dst):
-        continue
-      if os.path.exists(dst):
-        if filecmp.cmp(stock_hook, dst, shallow=False):
-          os.remove(dst)
-        else:
-          _error("%s: Not replacing %s hook", self.relpath, name)
-          continue
-      try:
-        portable.os_link(stock_hook, dst)
-      except OSError as e:
-        if e.errno == errno.EPERM:
-          raise GitError('filesystem must support symlinks')
-        else:
-          raise
+    #  dst = os.path.join(hooks, name)
+    #  if os.path.islink(dst):
+    #    continue
+    #  if os.path.exists(dst):
+    #    if filecmp.cmp(stock_hook, dst, shallow=False):
+    #      os.remove(dst)
+    #    else:
+    #      _error("%s: Not replacing %s hook", self.relpath, name)
+    #      continue
+    #  try:
+    #    portable.os_link(stock_hook, dst)
+    #  except OSError as e:
+    #    if e.errno == errno.EPERM:
+    #      raise GitError('filesystem must support symlinks')
+    #    else:
+    #      raise
+    pass
 
   def _InitRemote(self):
     if self.remote.url:
