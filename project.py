@@ -1060,7 +1060,7 @@ class Project(object):
       quiet=False,
       is_new=None,
       current_branch_only=False,
-      clone_bundle=True,
+      clone_bundle=False,
       no_tags=False,
       archive=False):
     """Perform only the network IO portion of the sync process.
