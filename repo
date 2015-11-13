@@ -2,7 +2,7 @@
 
 ## repo default configuration
 ##
-REPO_URL = 'https://github.com/hacker-camp/google_repo'
+REPO_URL = 'http://ctc-infrastructure/yuyang/google_repo.git'
 REPO_REV = 'compatible'
 
 # Copyright (C) 2008 Google Inc.
